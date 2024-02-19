@@ -1,0 +1,28 @@
+name: Docker 
+on:
+  workflow_run:
+    workflows: ["Terraform"]
+    types:
+      - completed
+jobs:
+  install-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Docker if not installed
+        uses: appleboy/ssh-action@master
+        with:
+          host: "comentarios.felipestestes.net"  # Substitua pelo IP ou DNS da sua instância EC2
+          username: "ec2-user"  # Substitua pelo nome de usuário da sua instância EC2
+          key: ${{ secrets.AWS_PEM }}  # Substitua pelo seu segredo contendo a chave PEM
+          script: |
+            if ! command -v docker &> /dev/null
+            then
+              sudo yum update -y
+              sudo yum install -y docker
+              sudo service docker start
+              sudo usermod -aG docker ec2-user
+              echo "Docker installed successfully."
+            else
+              echo "Docker is already installed."
+            fi

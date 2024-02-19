@@ -1,0 +1,55 @@
+name: Push-to-EC2
+on:
+  workflow_run:
+    workflows: ["Docker"]
+    types:
+      - completed
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run tests
+      run: python -m pytest
+      
+  deploy:
+    name: Deploy to EC2
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the files
+      uses: actions/checkout@v3
+    
+
+    - name: Copy files with SSH
+      uses: easingthemes/ssh-deploy@main
+      env:
+        SSH_PRIVATE_KEY: ${{secrets.AWS_PEM}}
+        
+        SOURCE: "./"
+        REMOTE_HOST: "comentarios.felipestestes.net"
+        REMOTE_USER: "ec2-user"
+        TARGET: "/home/ec2-user"
+
+    - name: SSH into EC2 instance
+      uses: appleboy/ssh-action@master
+      with:
+        host: "comentarios.felipestestes.net"
+        username: "ec2-user"
+        key: ${{ secrets.AWS_PEM }}
+        script: |
+          cd /home/ec2-user/app
+          docker build -t comentarios .
+          docker run -d --name comentarios-container -p 8000:8000 comentarios
+        
